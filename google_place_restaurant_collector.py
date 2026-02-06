@@ -213,7 +213,7 @@ if os.path.exists(OUT_CSV):
 else:
     print(f"A new file will be created at: {OUT_CSV}")
 
-buffer_rows = []
+buffer_rows = [] 
 points_since_save = 0
 total_points = len(grid_points)
 
@@ -308,10 +308,8 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
 
     if idx % 25 == 0: # print progress every 25 grid points 
         avg_new = sum(new_counts_window) / max(1, len(new_counts_window))
-        print(
-            f"[{idx}/{total_points}] unique={len(seen_place_ids)} | "
-            f"new_this_point={new_this_point} | avg_new(last{len(new_counts_window)})={avg_new:.2f}"
-        )
+        print(f"[{idx}/{total_points}] unique={len(seen_place_ids)} | "
+            f"new_this_point={new_this_point} | avg_new(last{len(new_counts_window)})={avg_new:.2f}")
 
     # Write buffered rows to disk regularly to reduce risk
     if (len(buffer_rows) >= save_every) or (points_since_save >= SAVE_EVERY_POINTS):
@@ -333,11 +331,10 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
         if avg_new < LOW_NEW_THRESHOLD:
             append_rows_to_csv(buffer_rows, OUT_CSV)
             buffer_rows.clear()
-            print(
-                f"Stop condition met (low new rate): avg_new(last{LOW_NEW_WINDOW})={avg_new:.2f} < {LOW_NEW_THRESHOLD}"
-            )
+            print(f"Stop condition met (low new rate): avg_new(last{LOW_NEW_WINDOW})={avg_new:.2f} < {LOW_NEW_THRESHOLD}")
             break
 
+    
     time.sleep(gp_sleep)
 
 # Final save
