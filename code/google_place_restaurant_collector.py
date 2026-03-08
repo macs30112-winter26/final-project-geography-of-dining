@@ -25,7 +25,8 @@ from shapely import wkt
 from shapely.geometry import Point
 from shapely.ops import unary_union
 
-# Set Path
+
+# set Path
 """
 cd local path
 export GOOGLE_PLACES_API_KEY="API_KEY"
@@ -33,7 +34,7 @@ python3 file_name.py
 """
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Source: Chicago Data Portal - Boundaries - Community Areas - Map
+# source: Chicago Data Portal - Boundaries - Community Areas - Map
 # https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-Map/cauq-8yn6
 BOUNDARY_COMMUNITY_AREAS_CSV = os.path.join(BASE_DIR, "Boundaries_-_Community_Areas_20260202.csv")
 
@@ -41,41 +42,43 @@ OUT_DIR = os.path.join(BASE_DIR, "Google_Place_Chicago_restaurants")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 OUT_CSV = os.path.join(OUT_DIR, "gp_chicago.csv")
-OUT_ERRORLOG = os.path.join(OUT_DIR, "gp_chicago_error_log.jsonl")
+OUT_ERRLOG = os.path.join(OUT_DIR, "gp_chicago_error_log.jsonl")
 
 
-# Settings 
+# settings 
 
-
+# use API key from environment to avoid accidental call
 # os.environ["GOOGLE_PLACES_API_KEY"] = "API_KEY"
 API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 assert API_KEY, "Missing GOOGLE_PLACES_API_KEY"
 
-# Stop after N unique restaurants/place_id
+# stop after N unique restaurants/place_id
 gp_stop_after_n = 9000 
 
 # Google Places Api Nearby Search
 URL = "https://places.googleapis.com/v1/places:searchNearby"
 
-# Per-grid-point query settings
+# per-grid-point query settings
 gp_max_per_point = 20 # Google Places API Nearby Search only returns up to 20 results
 gp_radius_m = 900.0 # in meter
-gp_sleep = 0.10 
+gp_sleep = 0.10 # sleep between requests in seconds
 
 # frequent save to reduce risk in data loss
-SAVE_EVERY_POINTS = 10
-save_every = 200 
+SAVE_EVERY_POINTS = 10 # save at least every 10 grid points
+save_every = 200 # save every 200 rows
 
-
+# early-stop by diminishing returns
 LOW_NEW_WINDOW = 30
-LOW_NEW_THRESHOLD = 1  # None to disable
+LOW_NEW_THRESHOLD = 1  # stop when avg new per point < threshold; could set to None to disable
+
+# grid spacing in km
 STEP_km = 1.4
 
 # save geometry column in the boundary CSV
 Boundry_geom_cols = ["the_geom", "the_geom_webmercator", "geometry"]
 
 
-# Build chicago polygon with city_poly
+# build chicago polygon with city_poly
 df_b = pd.read_csv(BOUNDARY_COMMUNITY_AREAS_CSV)
 
 geom_col = None
@@ -92,23 +95,40 @@ for s in df_b[geom_col].dropna().astype(str):
     except Exception:
         pass
 
-assert len(polys) > 0, "Failed"
+assert len(polys) > 0, "Failed to build polygons"
 city_poly = unary_union(polys)  # merge community areas into a whole Chicago polygon
-# print("Chicago:", city_poly.geom_type)
 
 
-# Calculate grid points
-
-# Approximate degree step sizes for a given distance in km at a reference latitude.
+# calculate grid points
 def approx_deg_step_km(km, lat_ref):
+    """
+    Approximate degree step sizes for a given distance in km at a reference latitude.
+    Inputs:
+        km (float): target step size in km
+        lat_ref (float): reference latitude in degrees
+    Outputs:
+        dlat (float): latitude step in degrees
+        dlon (float): longitude step in degrees
+    """
     dlat = km / 111.0
     dlon = km / (111.0 * max(0.1, math.cos(math.radians(lat_ref))))
     return dlat, dlon
 
-# Generate a lat/lon grid over a polygon and keep only points inside the polygon
 def make_grid_points_within_polygon(poly, step_km=1.4, lat_offset=0.0, lon_offset=0.0):
-    minx, miny, maxx, maxy = poly.bounds  # x=lon, y=lat
-    lat_ref = (miny + maxy)/2.0
+    """
+    Generate a lat/lon grid over a polygon and keep only points inside the polygon
+    Inputs:
+        poly (shapely.geometry): polygon in lon/lat, (x=lon, y=lat)
+        step_km (float): target grid spacing in km
+        lat_offset (float): latitude offset in degrees 
+        lon_offset (float): longitude offset in degrees
+    Outputs:
+        pts (list[tuple[float, float]]): list of (lat, lon) points inside poly
+        dlat (float): latitude step used in degrees
+        dlon (float): longitude step used in degrees
+    """
+    minx, miny, maxx, maxy = poly.bounds  # x=lon; y=lat
+    lat_ref = (miny + maxy) / 2.0
     dlat, dlon = approx_deg_step_km(step_km, lat_ref)
 
     pts = []
@@ -125,11 +145,11 @@ def make_grid_points_within_polygon(poly, step_km=1.4, lat_offset=0.0, lon_offse
 # base grid
 grid_base, dlat, dlon = make_grid_points_within_polygon(city_poly, step_km=STEP_km, lat_offset=0.0, lon_offset=0.0)
 
-# additional grid
+# additional grid (half-step shift to reduce gaps)
 grid_offset, _, _ = make_grid_points_within_polygon(city_poly, step_km=STEP_km, lat_offset=dlat/2.0, lon_offset=dlon/2.0)
 
-# avoid duplication of (lat, lon) points; round them and keep only one point per location
 def dedup_points(points, ndigits=6):
+    """avoid duplication of (lat, lon) points; round them and keep only one point per location"""
     seen = set()
     out = []
     for lat, lon in points:
@@ -146,7 +166,7 @@ random.seed(42)
 random.shuffle(grid_points)
 
 
-# Fieldmask required by Google Places API
+# fieldmask required by Google Places API; request only needed ones
 HEADERS = {
     "Content-Type": "application/json",
     "X-Goog-Api-Key": API_KEY,
@@ -171,11 +191,12 @@ HEADERS = {
 }
 
 
-# Saving
-with open(OUT_ERRORLOG, "w") as f:
+# saving
+with open(OUT_ERRLOG, "w") as f: # overwrite error log each run
     pass
 
-def append_rows_to_csv(rows, out_csv): # Overwrite error log each run
+def append_rows_to_csv(rows, out_csv): 
+    """Append normal output to CSV or creates new file"""
     if not rows:
         return
     df = pd.DataFrame(rows)
@@ -183,7 +204,7 @@ def append_rows_to_csv(rows, out_csv): # Overwrite error log each run
     df.to_csv(out_csv, mode="a", header=not file_exists, index=False)
 
 def log_error(idx, gp_query_lat, gp_query_lon, status_code=None, msg=None, text=None):
-    """ Append API/error record to OUT_ERRORLOG"""
+    """ Append API/error record to OUT_ERRLOG"""
     rec = {
         "idx": idx,
         "gp_query_lat": gp_query_lat,
@@ -192,7 +213,7 @@ def log_error(idx, gp_query_lat, gp_query_lon, status_code=None, msg=None, text=
         "msg": msg,
         "text_head": (text[:200] if isinstance(text, str) else None),
     }
-    with open(OUT_ERRORLOG, "a") as f:
+    with open(OUT_ERRLOG, "a") as f:
         f.write(json.dumps(rec) + "\n")
 
 
@@ -213,11 +234,11 @@ if os.path.exists(OUT_CSV):
 else:
     print(f"A new file will be created at: {OUT_CSV}")
 
-buffer_rows = [] 
+buffer_rows = []
 points_since_save = 0
 total_points = len(grid_points)
 
-# Track new-place rate 
+# track new-place rate 
 new_counts_window = []
 
 def place_in_chicago(place_obj) -> bool:
@@ -247,7 +268,7 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
         resp = requests.post(URL, json=payload, headers=HEADERS, timeout=30)
     except Exception as e: # try to catch request error
         print(f"[{idx}/{total_points}] Request error:", str(e))
-        log_error(idx, gp_query_lat, gp_query_lon, msg="reqesterror", text=str(e)) # log the failure abd skip
+        log_error(idx, gp_query_lat, gp_query_lon, msg="reqesterror", text=str(e)) # log the failure and skip
         points_since_save += 1
         time.sleep(gp_sleep)
         continue
@@ -273,7 +294,7 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
         seen_place_ids.add(gp_place_id) # save in set to avoid repetition
         new_this_point += 1
         
-        # Save selected fields into output row
+        # save selected fields into output row
         buffer_rows.append({
             "gp_place_id": gp_place_id,
             "gp_name": (place.get("displayName") or {}).get("text"),
@@ -299,7 +320,7 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
         if len(seen_place_ids) >= gp_stop_after_n:
             break
 
-    # Update early-stop condition
+    # update early-stop condition
     new_counts_window.append(new_this_point)
     if len(new_counts_window) > LOW_NEW_WINDOW:
         new_counts_window.pop(0)
@@ -308,39 +329,42 @@ for idx, (gp_query_lat, gp_query_lon) in enumerate(grid_points, start=1):
 
     if idx % 25 == 0: # print progress every 25 grid points 
         avg_new = sum(new_counts_window) / max(1, len(new_counts_window))
-        print(f"[{idx}/{total_points}] unique={len(seen_place_ids)} | "
-            f"new_this_point={new_this_point} | avg_new(last{len(new_counts_window)})={avg_new:.2f}")
+        print(
+            f"[{idx}/{total_points}] unique={len(seen_place_ids)} | "
+            f"new_this_point={new_this_point} | avg_new(last{len(new_counts_window)})={avg_new:.2f}"
+        )
 
-    # Write buffered rows to disk regularly to reduce risk
+    # write buffered rows regularly to reduce risk
     if (len(buffer_rows) >= save_every) or (points_since_save >= SAVE_EVERY_POINTS):
         append_rows_to_csv(buffer_rows, OUT_CSV)
         buffer_rows.clear()
         points_since_save = 0
         print(f"Saved at grid point {idx}. unique={len(seen_place_ids)} | csv={OUT_CSV}")
 
-    # Stop if reached target N unique restaurants
+    # stop if reached target N unique restaurants
     if len(seen_place_ids) >= gp_stop_after_n:
         append_rows_to_csv(buffer_rows, OUT_CSV)
         buffer_rows.clear()
         print("Stop condition met N:", gp_stop_after_n)
         break
 
-    # Stop if recent grid points are not finding many new places
+    # stop if recent grid points are not finding many new places
     if LOW_NEW_THRESHOLD is not None and len(new_counts_window) == LOW_NEW_WINDOW:
         avg_new = sum(new_counts_window) / LOW_NEW_WINDOW
         if avg_new < LOW_NEW_THRESHOLD:
             append_rows_to_csv(buffer_rows, OUT_CSV)
             buffer_rows.clear()
-            print(f"Stop condition met (low new rate): avg_new(last{LOW_NEW_WINDOW})={avg_new:.2f} < {LOW_NEW_THRESHOLD}")
+            print(
+                f"Stop condition met (low new rate): avg_new(last{LOW_NEW_WINDOW})={avg_new:.2f} < {LOW_NEW_THRESHOLD}"
+            )
             break
 
-    
     time.sleep(gp_sleep)
 
-# Final save
+# final save
 append_rows_to_csv(buffer_rows, OUT_CSV)
 buffer_rows.clear()
 
-print("DONE. Total unique places collected:", len(seen_place_ids))
+print("Total unique places collected:", len(seen_place_ids))
 print("Saved CSV:",OUT_CSV)
-print("Saved error log JSONL:", OUT_ERRORLOG)
+print("Saved error log JSONL:", OUT_ERRLOG)

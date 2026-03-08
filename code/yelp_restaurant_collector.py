@@ -21,7 +21,7 @@ export YELP_FUSION_API_KEY="API_KEY"
 python3 file_name.py
 """
 
-# Set Path
+# set Path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 OUT_DIR = os.path.join(BASE_DIR, "Yelp_Chicago_restaurants")
@@ -46,10 +46,10 @@ unique_zips = zip_df["gp_zipcode"].astype(str).tolist()
 
 # collect data
 yelp_records = []
-seen_ids = set()  # de-duplicate restaurants across ZIP codes
+seen_ids = set()  # deduplicate restaurants across zipcodes
 
-limit = 40
-max_page_per_zip = 6
+limit = 40 # number of restaurants retrieved per API request
+max_page_per_zip = 6 # pages per ZIP code; 6 * 40 = 240, matching Yelp API's maximum offset limit (240)
 
 for zipcode in unique_zips:
 
@@ -111,16 +111,16 @@ for zipcode in unique_zips:
             print(f"ZIP {zipcode}; Retrieved {len(businesses)} businesses; New unique {new_in_page}; Total unique {len(seen_ids)}")
 
             # break if new page adds very few new restaurants
-            if new_in_page < 3: #optimize API usage
+            if new_in_page < 3: # optimize API usage
                 break
 
         else:
-            print(f"Error for ZIP {zipcode}")
+            print(f"error for ZIP {zipcode}")
             break
 
         time.sleep(0.2)
 
-# Final save
+# final save
 yelp_df = pd.DataFrame(yelp_records)
 yelp_df.to_csv(OUTPUT_PATH, index=False)
 print("Final unique restaurants:", yelp_df["yelp_business_id"].nunique())
