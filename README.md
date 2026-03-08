@@ -64,7 +64,7 @@ Do restaurant characteristics, including restaurant type, service options, hours
 # Repository Structure
 
 ```text
-project/
+final-project-geography-of-dining/
 ├── data/
 │   ├── Yelp_Chicago_restaurants/                # Raw and cleaned Yelp restaurant data
 │   ├── Google_Place_Chicago_restaurants/        # Raw and cleaned Google Places restaurant data
@@ -82,6 +82,8 @@ project/
 │   └── Geography_of_Dining_updated.pptx         # Updated presentation slide
 └── README.md
 ```
+
+# Demonstration Video
 
 # Author
 Jessica Xu
