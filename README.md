@@ -64,23 +64,30 @@ Do restaurant characteristics, including restaurant type, service options, hours
 # Repository Structure
 
 ```text
-final-project-geography-of-dining/
-├── data/
-│   ├── Yelp_Chicago_restaurants/                # Raw and cleaned Yelp restaurant data
-│   ├── Google_Place_Chicago_restaurants/        # Raw and cleaned Google Places restaurant data
-│   ├── gp_yelp_matched.csv                      # Matched raw Google Places–Yelp merged dataset
-│   ├── gp_yelp_matched_cleaned.csv              # Matched cleaned merged dataset with engineered variables
-│   └── chicago_unique_zipcodes.csv              # Chicago ZIP codes
+final-project-geography-of-dining
+│
 ├── code/
-│   ├── google_place_restaurant_collector.py     # Collects Chicago restaurants from the Google Places API
-│   ├── yelp_restaurant_collector.py             # Collects Chicago restaurants from the Yelp Fusion API
-│   ├── data_clean_up.ipynb                      # Cleans and standardizes the Google Places and Yelp datasets
-│   ├── data_merge.ipynb                         # Matches restaurants across platforms and produces the merged dataframe
-│   └── data_analysis.ipynb                      # Conducts exploratory data analysis and downstream analysis and visualization
+│   ├── data_analysis.ipynb
+│   ├── data_clean_up.ipynb
+│   ├── data_merge.ipynb
+│   ├── google_place_restaurant_collector.py
+│   └── yelp_restaurant_collector.py
+│
+├── data/
+│   ├── Google_Place_Chicago_restaurants/
+│   ├── Yelp_Chicago_restaurants/
+│   ├── ACS_5_Year_Data_by_Community_Area_20260202.csv
+│   ├── Boundaries_-_Community_Areas_20260202.csv
+│   ├── chicago_unique_zipcodes.csv
+│   ├── gp_yelp_matched.csv
+│   └── gp_yelp_matched_cleaned.csv
+│
 ├── slide/
-│   ├── Geography_of_Dining_in_class.pptx        # In-class presentation slide
-│   └── Geography_of_Dining_updated.pptx         # Updated presentation slide
-└── README.md
+│   ├── Geography_of_Dining_final.pdf
+│   └── Geography_of_Dining_in_class.pdf
+│
+├── README.md
+└── .gitignore
 ```
 
 # Demonstration Video
