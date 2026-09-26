@@ -90,9 +90,6 @@ final-project-geography-of-dining
 └── .gitignore
 ```
 
-# Demonstration Video
-- [Dataset page](https://drive.google.com/file/d/1j8qVFXkRv-zoRlhA3xqEzq8u3vRwjr6m/view?usp=sharing)
-
 # Author
 Jessica Xu
 
